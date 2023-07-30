@@ -333,7 +333,7 @@ public class CacheClient implements AutoCloseable
 
 					if (hash != archive.getCrc())
 					{
-						logger.warn("crc mismatch on downloaded archive {}/{}: {} != {}",
+						logger.error("crc mismatch on downloaded archive {}/{}: {} != {}",
 							archive.getIndex().getId(), archive.getArchiveId(),
 							hash, archive.getCrc());
 						throw new RuntimeException("crc mismatch");
@@ -459,7 +459,7 @@ public class CacheClient implements AutoCloseable
 
 		if (pr == null)
 		{
-			logger.warn("File download {}/{} with no pending request", index, file);
+			logger.error("File download {}/{} with no pending request", index, file);
 			return;
 		}
 
