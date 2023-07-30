@@ -64,10 +64,9 @@ public class CacheClient implements AutoCloseable
 {
 	private static final Logger logger = LoggerFactory.getLogger(CacheClient.class);
 
-	private static final String HOST = "oldschool1.runescape.com";
 	private static final int PORT = 43594;
 
-	private static final int MAX_REQUESTS = 19; // too many and the server closes the conncetion
+	private static final int MAX_REQUESTS = 19; // too many and the server closes the connection
 
 	private final Store store; // store cache will be written to
 	private final String host;
@@ -81,11 +80,6 @@ public class CacheClient implements AutoCloseable
 
 	private CompletableFuture<HandshakeResponseType> handshakeFuture;
 	private final Queue<PendingFileRequest> requests = new ArrayDeque<>();
-
-	public CacheClient(Store store, int clientRevision)
-	{
-		this(store, HOST, clientRevision);
-	}
 
 	public CacheClient(Store store, String host, int clientRevision)
 	{
@@ -109,11 +103,10 @@ public class CacheClient implements AutoCloseable
 			.handler(new ChannelInitializer<SocketChannel>()
 			{
 				@Override
-				public void initChannel(SocketChannel ch) throws Exception
+				public void initChannel(SocketChannel ch)
 				{
 					ChannelPipeline p = ch.pipeline();
 
-					//p.addFirst(new HttpProxyHandler(new InetSocketAddress("runelite.net", 3128)));
 					p.addLast("decoder", new HandshakeResponseDecoder());
 
 					p.addLast(
