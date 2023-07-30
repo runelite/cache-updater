@@ -24,21 +24,14 @@
  */
 package net.runelite.cache.updater;
 
-import io.minio.MinioClient;
-import io.minio.errors.InvalidEndpointException;
-import io.minio.errors.InvalidPortException;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import net.runelite.cache.client.CacheClient;
 import net.runelite.cache.client.IndexInfo;
-import net.runelite.cache.fs.Archive;
 import net.runelite.cache.fs.Store;
+import net.runelite.cache.updater.beans.ArchiveEntry;
 import net.runelite.cache.updater.beans.CacheEntry;
-import net.runelite.cache.updater.beans.IndexEntry;
 import net.runelite.protocol.api.login.HandshakeResponseType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,45 +50,39 @@ public class CacheUpdater implements CommandLineRunner
 	private static final Logger logger = LoggerFactory.getLogger(CacheUpdater.class);
 
 	private final Sql2o sql2o;
-	private final MinioClient minioClient;
-
-	@Value("${minio.bucket}")
-	private String minioBucket;
 
 	@Value("${rs.version}")
 	private int rsVersion;
 
+	@Value("${rs.host}")
+	private String host;
+
 	@Autowired
 	public CacheUpdater(
-		@Qualifier("Runelite Cache SQL2O") Sql2o sql2o,
-		MinioClient minioClient
+		@Qualifier("RuneLite Cache SQL2O") Sql2o sql2o
 	)
 	{
 		this.sql2o = sql2o;
-		this.minioClient = minioClient;
 	}
 
-	public void update() throws IOException, InvalidEndpointException, InvalidPortException, InterruptedException
+	public void update() throws IOException
 	{
 		try (Connection con = sql2o.beginTransaction())
 		{
-			CacheDAO cacheDao = new CacheDAO();
-			CacheEntry cache = cacheDao.findMostRecent(con);
+			CacheDAO cacheDao = new CacheDAO(con);
+			CacheEntry cache = cacheDao.findMostRecent();
 			boolean created = false;
 			if (cache == null)
 			{
 				created = true;
-				cache = cacheDao.createCache(con, rsVersion, Instant.now());
+				cache = cacheDao.createCache(rsVersion, Instant.now());
 			}
 
-			CacheStorage storage = new CacheStorage(cache, cacheDao, con);
+			CacheStorage storage = new CacheStorage(cache, cacheDao);
 			Store store = new Store(storage);
 			store.load();
 
-			ExecutorService executor = Executors.newSingleThreadExecutor();
-
-			CacheClient client = new CacheClient(store, rsVersion,
-				(Archive archive, byte[] data) -> executor.submit(new CacheUploader(minioClient, minioBucket, archive, data)));
+			CacheClient client = new CacheClient(store, host, rsVersion);
 
 			client.connect();
 			HandshakeResponseType result = client.handshake().join();
@@ -107,7 +94,7 @@ public class CacheUpdater implements CommandLineRunner
 			}
 
 			List<IndexInfo> indexes = client.requestIndexes();
-			List<IndexEntry> entries = cacheDao.findIndexesForCache(con, cache);
+			List<ArchiveEntry> entries = cacheDao.findIndexesForCache(cache);
 
 			if (!checkOutOfDate(indexes, entries))
 			{
@@ -117,28 +104,21 @@ public class CacheUpdater implements CommandLineRunner
 
 			client.download();
 
-			CacheEntry newCache = created ? cache : cacheDao.createCache(con, rsVersion, Instant.now());
-
+			CacheEntry newCache = created ? cache : cacheDao.createCache(rsVersion, Instant.now());
 			storage.setCacheEntry(newCache);
 
-			// ensure objects are added to the store before they become
-			// visible in the database
-			executor.shutdown();
-			while (!executor.awaitTermination(1, TimeUnit.SECONDS))
-			{
-				logger.debug("Waiting for termination of executor...");
-			}
+			logger.info("Saving new cache");
 
-			// CacheStorage requires archive hashes to be set, which is set in the executor tasks, so it must be
-			// run after shutdown
 			store.save();
 
 			// commit database
 			con.commit();
+
+			logger.info("Done!");
 		}
 	}
 
-	private boolean checkOutOfDate(List<IndexInfo> indexes, List<IndexEntry> dbIndexes)
+	private boolean checkOutOfDate(List<IndexInfo> indexes, List<ArchiveEntry> dbIndexes)
 	{
 		if (indexes.size() != dbIndexes.size())
 		{
@@ -148,7 +128,7 @@ public class CacheUpdater implements CommandLineRunner
 		for (int i = 0; i < indexes.size(); ++i)
 		{
 			IndexInfo ii = indexes.get(i);
-			IndexEntry ie = dbIndexes.get(i);
+			ArchiveEntry ie = dbIndexes.get(i);
 
 			if (ii.getId() != ie.getIndexId()
 				|| ii.getRevision() != ie.getRevision()
@@ -171,6 +151,12 @@ public class CacheUpdater implements CommandLineRunner
 	{
 		SpringApplication.run(CacheUpdater.class, args).close();
 		System.exit(0);
+	}
+
+	static
+	{
+		// this is required so that the re-compressed index data crc matches Jagex's
+		System.setProperty("runelite.useNativeBzip", "true");
 	}
 
 }

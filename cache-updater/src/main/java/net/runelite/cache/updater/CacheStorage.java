@@ -25,29 +25,29 @@
 package net.runelite.cache.updater;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import net.runelite.cache.fs.Archive;
+import net.runelite.cache.fs.Container;
 import net.runelite.cache.fs.Index;
 import net.runelite.cache.fs.Storage;
 import net.runelite.cache.fs.Store;
-import net.runelite.cache.index.FileData;
+import net.runelite.cache.index.ArchiveData;
+import net.runelite.cache.index.IndexData;
 import net.runelite.cache.updater.beans.ArchiveEntry;
 import net.runelite.cache.updater.beans.CacheEntry;
-import net.runelite.cache.updater.beans.IndexEntry;
-import org.sql2o.Connection;
-import org.sql2o.ResultSetIterable;
 
 public class CacheStorage implements Storage
 {
 	private CacheEntry cacheEntry;
 	private final CacheDAO cacheDao;
-	private final Connection con;
+	private final Map<Long, Integer> dataIds = new HashMap<>();
 
-	public CacheStorage(CacheEntry cacheEntry, CacheDAO cacheDao, Connection con)
+	public CacheStorage(CacheEntry cacheEntry, CacheDAO cacheDao)
 	{
 		this.cacheEntry = cacheEntry;
 		this.cacheDao = cacheDao;
-		this.con = con;
 	}
 
 	public CacheEntry getCacheEntry()
@@ -61,44 +61,60 @@ public class CacheStorage implements Storage
 	}
 
 	@Override
-	public void init(Store store) throws IOException
+	public void init(Store store)
 	{
 	}
 
 	@Override
-	public void close() throws IOException
+	public void close()
 	{
 	}
 
 	@Override
 	public void load(Store store) throws IOException
 	{
-		List<IndexEntry> indexes = cacheDao.findIndexesForCache(con, cacheEntry);
-		for (IndexEntry indexEntry : indexes)
+		List<ArchiveEntry> indexes = cacheDao.findIndexesForCache(cacheEntry);
+		for (ArchiveEntry indexEntry : indexes)
 		{
-			Index index = store.addIndex(indexEntry.getIndexId());
+			Index index = store.addIndex(indexEntry.getArchiveId());
 			index.setCrc(indexEntry.getCrc());
 			index.setRevision(indexEntry.getRevision());
 
-			try (ResultSetIterable<ArchiveEntry> archives = cacheDao.findArchivesForIndex(con, indexEntry))
+			// index data includes file data too, which isn't stored otherwise. so we need to load this
+			// instead of reading from the archive tables.
+			byte[] indexData = cacheDao.readData(indexEntry.getDataId());
+			if (indexData == null)
 			{
-				for (ArchiveEntry archiveEntry : archives)
-				{
-					if (index.getArchive(archiveEntry.getArchiveId()) != null)
-					{
-						throw new IOException("Duplicate archive " + archiveEntry + " on " + indexEntry);
-					}
-
-					Archive archive = index.addArchive(archiveEntry.getArchiveId());
-					archive.setNameHash(archiveEntry.getNameHash());
-					archive.setCrc(archiveEntry.getCrc());
-					archive.setRevision(archiveEntry.getRevision());
-					archive.setHash(archiveEntry.getHash());
-
-					// File data is not necessary for cache updating
-				}
+				throw new IOException("missing index data");
 			}
+
+			Container res = Container.decompress(indexData, null);
+			byte[] data = res.data;
+
+			IndexData id = new IndexData();
+			id.load(data);
+
+			index.setProtocol(id.getProtocol());
+			index.setRevision(id.getRevision());
+			index.setNamed(id.isNamed());
+			index.setCrc(res.crc);
+			index.setCompression(res.compression);
+
+			for (ArchiveData ad : id.getArchives())
+			{
+				Archive archive = index.addArchive(ad.getId());
+				archive.setNameHash(ad.getNameHash());
+				archive.setCrc(ad.getCrc());
+				archive.setRevision(ad.getRevision());
+				archive.setFileData(ad.getFiles());
+
+				assert ad.getFiles().length > 0;
+			}
+
+			assert res.revision == -1;
 		}
+
+		// load dataIds here?
 	}
 
 	@Override
@@ -106,39 +122,56 @@ public class CacheStorage implements Storage
 	{
 		for (Index index : store.getIndexes())
 		{
-			IndexEntry entry = cacheDao.createIndex(con, cacheEntry, index.getId(), index.getCrc(), index.getRevision());
+			saveIndex(index);
 
 			for (Archive archive : index.getArchives())
 			{
-				ArchiveEntry archiveEntry = cacheDao.findArchive(con, entry, archive.getArchiveId(),
-					archive.getNameHash(), archive.getCrc(), archive.getRevision());
-				if (archiveEntry == null)
+				int id = cacheDao.findArchive(index.getId(), archive.getArchiveId(), archive.getCrc(), archive.getNameHash(), archive.getRevision());
+				if (id == -1)
 				{
-					byte[] hash = archive.getHash();
-					archiveEntry = cacheDao.createArchive(con, entry, archive.getArchiveId(),
-						archive.getNameHash(), archive.getCrc(), archive.getRevision(), hash);
-
-					for (FileData file : archive.getFileData())
+					Integer dataId = dataIds.get((long) index.getId() << 32 | archive.getArchiveId());
+					if (dataId == null)
 					{
-						cacheDao.associateFileToArchive(con, archiveEntry, file.getId(), file.getNameHash());
+						throw new RuntimeException("no data for " + index.getId() + "/" + archive.getArchiveId());
 					}
+					id = cacheDao.insertArchive(index.getId(), archive.getArchiveId(), archive.getCrc(), archive.getNameHash(), archive.getRevision(), dataId);
 				}
-
-				cacheDao.associateArchiveToIndex(con, archiveEntry, entry);
+				cacheDao.linkArchive(cacheEntry.getId(), id);
 			}
 		}
 	}
 
+	private void saveIndex(Index index) throws IOException
+	{
+		IndexData indexData = index.toIndexData();
+		byte[] data = indexData.writeIndexData();
+
+		Container container = new Container(index.getCompression(), -1); // index data revision is always -1
+		container.compress(data, null);
+		byte[] compressedData = container.data;
+
+		int id = cacheDao.findArchive(255, index.getId(), container.crc, 0, index.getRevision());
+		if (id == -1)
+		{
+			int dataId = cacheDao.insertData(compressedData);
+			id = cacheDao.insertArchive(255, index.getId(), container.crc, 0, index.getRevision(), dataId);
+		}
+
+		cacheDao.linkArchive(cacheEntry.getId(), id);
+
+		index.setCrc(container.crc);
+	}
+
 	@Override
-	public byte[] loadArchive(Archive archive) throws IOException
+	public byte[] load(int index, int archive)
 	{
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public void saveArchive(Archive archive, byte[] data) throws IOException
+	public void store(int index, int archive, byte[] data)
 	{
-		throw new UnsupportedOperationException();
+		int key = cacheDao.insertData(data);
+		dataIds.put((long) index << 32 | archive, key);
 	}
-
 }

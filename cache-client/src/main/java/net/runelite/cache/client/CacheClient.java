@@ -71,7 +71,6 @@ public class CacheClient implements AutoCloseable
 	private final Store store; // store cache will be written to
 	private final String host;
 	private final int clientRevision;
-	private DownloadWatcher watcher;
 
 	private ClientState state;
 
@@ -86,12 +85,6 @@ public class CacheClient implements AutoCloseable
 		this.store = store;
 		this.host = host;
 		this.clientRevision = clientRevision;
-	}
-
-	public CacheClient(Store store, int clientRevision, DownloadWatcher watcher)
-	{
-		this(store, clientRevision);
-		this.watcher = watcher;
 	}
 
 	public void connect()
@@ -339,21 +332,14 @@ public class CacheClient implements AutoCloseable
 						throw new RuntimeException("crc mismatch");
 					}
 
-					if (watcher != null)
+					try
 					{
-						watcher.downloadComplete(archive, data);
+						Storage storage = store.getStorage();
+						storage.store(indexInfo.getId(), archive.getArchiveId(), data);
 					}
-					else
+					catch (IOException ex1)
 					{
-						try
-						{
-							Storage storage = store.getStorage();
-							storage.saveArchive(archive, data);
-						}
-						catch (IOException ex1)
-						{
-							logger.warn("unable to save archive data", ex1);
-						}
+						logger.error("unable to save archive data", ex1);
 					}
 					return null;
 				});

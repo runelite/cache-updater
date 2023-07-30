@@ -24,15 +24,11 @@
  */
 package net.runelite.cache.updater;
 
-import io.minio.MinioClient;
-import io.minio.errors.InvalidEndpointException;
-import io.minio.errors.InvalidPortException;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
@@ -44,15 +40,6 @@ import org.sql2o.quirks.NoQuirks;
 @Configuration
 public class CacheConfiguration
 {
-	@Value("${minio.endpoint}")
-	private String minioUrl;
-
-	@Value("${minio.accesskey}")
-	private String minioAccessKey;
-
-	@Value("${minio.secretkey}")
-	private String minioSecretKey;
-
 	@Bean
 	@ConfigurationProperties(prefix = "datasource.runelite-cache")
 	public DataSource dataSource()
@@ -61,17 +48,11 @@ public class CacheConfiguration
 	}
 
 	@Bean
-	@Qualifier("Runelite Cache SQL2O")
+	@Qualifier("RuneLite Cache SQL2O")
 	public Sql2o sql2o(DataSource dataSource)
 	{
 		Map<Class, Converter> converters = new HashMap<>();
 		converters.put(Instant.class, new InstantConverter());
 		return new Sql2o(dataSource, new NoQuirks(converters));
-	}
-
-	@Bean
-	public MinioClient minioClient() throws InvalidEndpointException, InvalidPortException
-	{
-		return new MinioClient(minioUrl, minioAccessKey, minioSecretKey);
 	}
 }

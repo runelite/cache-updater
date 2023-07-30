@@ -41,7 +41,7 @@
 		<slf4j.version>1.7.25</slf4j.version>
 
 		<maven.javadoc.skip>true</maven.javadoc.skip>
-		<checkstyle.skip>true</checkstyle.skip>
+		<checkstyle.skip>false</checkstyle.skip>
 	</properties>
 
 	<licenses>

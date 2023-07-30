@@ -1,4 +1,11 @@
 ---
+#debug: true
+
+#logging:
+#  level:
+#    net.runelite.cache.updater: debug
+#    net.runelite.cache.client: debug
+
 # Database
 datasource:
   runelite-cache:
@@ -6,12 +13,6 @@ datasource:
     username: runelite
     password: runelite
 
-# Minio client storage for cache
-minio:
-  endpoint: http://localhost:9000
-  accesskey: admin
-  secretkey: password
-  bucket: runelite
-
 rs:
-  version: 214
+  version: 215
+  host: oldschool1.runescape.com
