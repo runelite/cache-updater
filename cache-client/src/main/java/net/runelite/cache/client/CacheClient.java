@@ -378,18 +378,18 @@ public class CacheClient implements AutoCloseable
 		// flush any pending requests
 		channel.flush();
 
-		while (!requests.isEmpty())
+		synchronized (this)
 		{
-			// wait for pending requests
-			synchronized (this)
+			while (!requests.isEmpty())
 			{
+				// wait for pending requests
 				try
 				{
 					wait();
 				}
 				catch (InterruptedException ex)
 				{
-					logger.warn(null, ex);
+					logger.error(null, ex);
 				}
 			}
 		}
