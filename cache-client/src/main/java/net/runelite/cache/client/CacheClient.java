@@ -235,7 +235,7 @@ public class CacheClient implements AutoCloseable
 			else if (index.getCrc() != crc)
 			{
 				logger.warn("Index {} CRC has changed! (our crc {}, their crc {})",
-					index.getCrc(), index.getCrc(), crc);
+					index.getId(), index.getCrc(), crc);
 			}
 			else
 			{
