@@ -36,4 +36,5 @@ import lombok.NoArgsConstructor;
 public class UpdateHandshakePacket extends HandshakePacket
 {
 	private int revision;
+	private int[] key = new int[4];
 }

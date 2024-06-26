@@ -61,14 +61,20 @@ public class HandshakeDecoder extends ByteToMessageDecoder
 			}
 			case UPDATE:
 			{
-				if (buf.readableBytes() < 4)
+				if (buf.readableBytes() < 4 * 5)
 				{
 					buf.resetReaderIndex();
 					return;
 				}
 
 				int revision = buf.readInt();
-				UpdateHandshakePacket packet = new UpdateHandshakePacket(revision);
+				int[] key = {
+					buf.readInt(),
+					buf.readInt(),
+					buf.readInt(),
+					buf.readInt(),
+				};
+				UpdateHandshakePacket packet = new UpdateHandshakePacket(revision, key);
 				out.add(packet);
 				break;
 			}

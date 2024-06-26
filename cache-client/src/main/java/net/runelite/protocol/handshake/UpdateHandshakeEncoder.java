@@ -37,6 +37,10 @@ public class UpdateHandshakeEncoder extends MessageToByteEncoder<UpdateHandshake
 	{
 		buf.writeByte(HandshakeType.UPDATE.getValue());
 		buf.writeInt(packet.getRevision());
+		buf.writeInt(packet.getKey()[0]);
+		buf.writeInt(packet.getKey()[1]);
+		buf.writeInt(packet.getKey()[2]);
+		buf.writeInt(packet.getKey()[3]);
 	}
 
 }
