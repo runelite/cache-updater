@@ -57,6 +57,9 @@ public class CacheUpdater implements CommandLineRunner
 	@Value("${rs.host}")
 	private String host;
 
+	@Value("${rs.port:43594}")
+	private int port;
+
 	@Autowired
 	public CacheUpdater(
 		@Qualifier("RuneLite Cache SQL2O") Sql2o sql2o
@@ -82,7 +85,7 @@ public class CacheUpdater implements CommandLineRunner
 			Store store = new Store(storage);
 			store.load();
 
-			CacheClient client = new CacheClient(store, host, rsVersion);
+			CacheClient client = new CacheClient(store, host, port, rsVersion);
 
 			client.connect();
 			HandshakeResponseType result = client.handshake().join();

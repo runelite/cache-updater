@@ -54,7 +54,7 @@ public class CacheClientTest
 		{
 			store.load();
 
-			CacheClient c = new CacheClient(store, "oldschool1.runescape.com", 215);
+			CacheClient c = new CacheClient(store, "oldschool1.runescape.com", 43594, 226);
 			c.connect();
 			CompletableFuture<HandshakeResponseType> handshake = c.handshake();
 

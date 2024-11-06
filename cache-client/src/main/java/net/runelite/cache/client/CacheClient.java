@@ -64,12 +64,11 @@ public class CacheClient implements AutoCloseable
 {
 	private static final Logger logger = LoggerFactory.getLogger(CacheClient.class);
 
-	private static final int PORT = 43594;
-
 	private static final int MAX_REQUESTS = 19; // too many and the server closes the connection
 
 	private final Store store; // store cache will be written to
 	private final String host;
+	private final int port;
 	private final int clientRevision;
 
 	private ClientState state;
@@ -80,10 +79,11 @@ public class CacheClient implements AutoCloseable
 	private CompletableFuture<HandshakeResponseType> handshakeFuture;
 	private final Queue<PendingFileRequest> requests = new ArrayDeque<>();
 
-	public CacheClient(Store store, String host, int clientRevision)
+	public CacheClient(Store store, String host, int port, int clientRevision)
 	{
 		this.store = store;
 		this.host = host;
+		this.port = port;
 		this.clientRevision = clientRevision;
 	}
 
@@ -117,7 +117,7 @@ public class CacheClient implements AutoCloseable
 			});
 
 		// Start the client.
-		ChannelFuture f = b.connect(host, PORT).syncUninterruptibly();
+		ChannelFuture f = b.connect(host, port).syncUninterruptibly();
 		channel = f.channel();
 	}
 
