@@ -60,6 +60,9 @@ public class CacheUpdater implements CommandLineRunner
 	@Value("${rs.port:43594}")
 	private int port;
 
+	@Value("${useNativeBzip}")
+	private boolean useNativeBzip;
+
 	@Autowired
 	public CacheUpdater(
 		@Qualifier("RuneLite Cache SQL2O") Sql2o sql2o
@@ -147,6 +150,12 @@ public class CacheUpdater implements CommandLineRunner
 	@Override
 	public void run(String... args) throws Exception
 	{
+		if (useNativeBzip)
+		{
+			// this is required so that the re-compressed index data crc matches Jagex's
+			System.setProperty("runelite.useNativeBzip", "true");
+		}
+
 		update();
 	}
 
@@ -155,11 +164,4 @@ public class CacheUpdater implements CommandLineRunner
 		SpringApplication.run(CacheUpdater.class, args).close();
 		System.exit(0);
 	}
-
-	static
-	{
-		// this is required so that the re-compressed index data crc matches Jagex's
-		System.setProperty("runelite.useNativeBzip", "true");
-	}
-
 }

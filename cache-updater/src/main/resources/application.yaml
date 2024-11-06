@@ -16,3 +16,5 @@ datasource:
 rs:
   version: 223
   host: oldschool1.runescape.com
+
+useNativeBzip: false
