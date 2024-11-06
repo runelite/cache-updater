@@ -14,7 +14,7 @@ datasource:
     password: runelite
 
 rs:
-  version: 223
+  version: 226
   host: oldschool1.runescape.com
 
-useNativeBzip: false
+useNativeBzip: true
