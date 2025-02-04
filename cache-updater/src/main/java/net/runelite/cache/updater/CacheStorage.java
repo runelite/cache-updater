@@ -97,6 +97,7 @@ public class CacheStorage implements Storage
 			index.setProtocol(id.getProtocol());
 			index.setRevision(id.getRevision());
 			index.setNamed(id.isNamed());
+			index.setSized(id.isSized());
 			index.setCrc(res.crc);
 			index.setCompression(res.compression);
 
