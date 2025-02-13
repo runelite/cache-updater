@@ -39,7 +39,7 @@
 		<dependency>
 			<groupId>net.runelite</groupId>
 			<artifactId>cache</artifactId>
-			<version>1.10.50-SNAPSHOT</version>
+			<version>1.10.51</version>
 		</dependency>
 
 		<dependency>
