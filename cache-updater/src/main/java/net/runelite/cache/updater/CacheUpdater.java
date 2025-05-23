@@ -26,6 +26,7 @@ package net.runelite.cache.updater;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import net.runelite.cache.client.CacheClient;
 import net.runelite.cache.client.IndexInfo;
@@ -126,6 +127,9 @@ public class CacheUpdater implements CommandLineRunner
 
 	private boolean checkOutOfDate(List<IndexInfo> indexes, List<ArchiveEntry> dbIndexes)
 	{
+		indexes = new ArrayList<>(indexes);
+		indexes.removeIf(i -> CacheClient.UNUSED_INDEXES.contains(i.getId()));
+
 		if (indexes.size() != dbIndexes.size())
 		{
 			return true;
@@ -136,7 +140,7 @@ public class CacheUpdater implements CommandLineRunner
 			IndexInfo ii = indexes.get(i);
 			ArchiveEntry ie = dbIndexes.get(i);
 
-			if (ii.getId() != ie.getIndexId()
+			if (ii.getId() != ie.getArchiveId()
 				|| ii.getRevision() != ie.getRevision()
 				|| ii.getCrc() != ie.getCrc())
 			{

@@ -25,6 +25,7 @@
 package net.runelite.cache.client;
 
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.ImmutableSet;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -42,6 +43,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import net.runelite.cache.fs.Archive;
 import net.runelite.cache.fs.Index;
@@ -63,6 +65,8 @@ import org.slf4j.LoggerFactory;
 public class CacheClient implements AutoCloseable
 {
 	private static final Logger logger = LoggerFactory.getLogger(CacheClient.class);
+
+	public static final Set<Integer> UNUSED_INDEXES = ImmutableSet.of(16, 23);
 
 	private static final int MAX_REQUESTS = 19; // too many and the server closes the connection
 
@@ -200,7 +204,7 @@ public class CacheClient implements AutoCloseable
 			Index index = store.findIndex(i);
 
 			// client doesn't request these and the server silently drops it!
-			if (i == 16 || i == 23)
+			if (UNUSED_INDEXES.contains(i))
 			{
 				if (index != null)
 				{
