@@ -108,6 +108,8 @@ public class CacheStorage implements Storage
 				archive.setCrc(ad.getCrc());
 				archive.setRevision(ad.getRevision());
 				archive.setFileData(ad.getFiles());
+				archive.setCompressedSize(ad.getCompressedSize());
+				archive.setDecompressedSize(ad.getDecompressedSize());
 
 				assert ad.getFiles().length > 0;
 			}

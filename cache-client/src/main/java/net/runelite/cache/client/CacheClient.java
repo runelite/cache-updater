@@ -242,13 +242,13 @@ public class CacheClient implements AutoCloseable
 			FileResult indexFileResult = requestFile(255, i, true).join();
 			indexFileResult.decompress(null);
 
-			logger.info("Downloaded index {}", i);
-
 			if (indexFileResult.getCrc() != crc)
 			{
-				logger.warn("Corrupted download for index {}", i);
+				logger.error("Corrupted download for index {}", i);
 				continue;
 			}
+
+			logger.info("Downloaded index {}", i);
 
 			IndexData indexData = new IndexData();
 			indexData.load(indexFileResult.getContents());
@@ -277,7 +277,9 @@ public class CacheClient implements AutoCloseable
 
 				if (existing != null && existing.getRevision() == ad.getRevision()
 					&& existing.getCrc() == ad.getCrc()
-					&& existing.getNameHash() == ad.getNameHash())
+					&& existing.getNameHash() == ad.getNameHash()
+					&& existing.getCompressedSize() == ad.getCompressedSize()
+					&& existing.getDecompressedSize() == ad.getDecompressedSize())
 				{
 					logger.debug("Archive {}/{} in index {} is up to date",
 						ad.getId(), indexData.getArchives().length, index.getId());
@@ -298,11 +300,13 @@ public class CacheClient implements AutoCloseable
 				else
 				{
 					logger.info("Archive {}/{} in index {} is out of date, downloading. " +
-						"revision: ours: {} theirs: {}, crc: ours: {} theirs {}, name: ours {} theirs {}",
+						"revision: ours {} theirs {}, crc: ours {} theirs {}, name: ours {} theirs {}, decompressed size: ours {} theirs {}, size: ours {} theirs {}",
 						ad.getId(), indexData.getArchives().length, index.getId(),
 						existing.getRevision(), ad.getRevision(),
 						existing.getCrc(), ad.getCrc(),
-						existing.getNameHash(), ad.getNameHash());
+						existing.getNameHash(), ad.getNameHash(),
+						existing.getDecompressedSize(), ad.getDecompressedSize(),
+						existing.getCompressedSize(), ad.getCompressedSize());
 				}
 
 				final Archive archive = existing == null
@@ -312,6 +316,8 @@ public class CacheClient implements AutoCloseable
 				archive.setRevision(ad.getRevision());
 				archive.setCrc(ad.getCrc());
 				archive.setNameHash(ad.getNameHash());
+				archive.setCompressedSize(ad.getCompressedSize());
+				archive.setDecompressedSize(ad.getDecompressedSize());
 
 				// Add files
 				archive.setFileData(ad.getFiles());
