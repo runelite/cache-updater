@@ -76,10 +76,6 @@ public class CacheStorage implements Storage
 		List<ArchiveEntry> indexes = cacheDao.findIndexesForCache(cacheEntry);
 		for (ArchiveEntry indexEntry : indexes)
 		{
-			Index index = store.addIndex(indexEntry.getArchiveId());
-			index.setCrc(indexEntry.getCrc());
-			index.setRevision(indexEntry.getRevision());
-
 			// index data includes file data too, which isn't stored otherwise. so we need to load this
 			// instead of reading from the archive tables.
 			byte[] indexData = cacheDao.readData(indexEntry.getDataId());
@@ -91,9 +87,20 @@ public class CacheStorage implements Storage
 			Container res = Container.decompress(indexData, null);
 			byte[] data = res.data;
 
+			if (res.crc != indexEntry.getCrc())
+			{
+				throw new IOException("index data is corrupt");
+			}
+
 			IndexData id = new IndexData();
 			id.load(data);
 
+			if (id.getRevision() != indexEntry.getRevision())
+			{
+				throw new IOException("255 archive revision doesn't match its revision");
+			}
+
+			Index index = store.addIndex(indexEntry.getArchiveId());
 			index.setProtocol(id.getProtocol());
 			index.setRevision(id.getRevision());
 			index.setNamed(id.isNamed());
