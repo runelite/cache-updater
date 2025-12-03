@@ -160,6 +160,11 @@ public class CacheStorage implements Storage
 		container.compress(data, null);
 		byte[] compressedData = container.data;
 
+		if (index.getCrc() != container.crc)
+		{
+			throw new RuntimeException("container crc mismatches index");
+		}
+
 		int id = cacheDao.findArchive(255, index.getId(), container.crc, 0, index.getRevision());
 		if (id == -1)
 		{
@@ -168,8 +173,6 @@ public class CacheStorage implements Storage
 		}
 
 		cacheDao.linkArchive(cacheEntry.getId(), id);
-
-		index.setCrc(container.crc);
 	}
 
 	@Override

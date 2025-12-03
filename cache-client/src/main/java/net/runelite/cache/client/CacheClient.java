@@ -285,6 +285,7 @@ public class CacheClient implements AutoCloseable
 					&& existing.getCompressedSize() == ad.getCompressedSize()
 					&& existing.getDecompressedSize() == ad.getDecompressedSize())
 				{
+					existing.setFileData(ad.getFiles());
 					logger.debug("Archive {}/{} in index {} is up to date",
 						ad.getId(), indexData.getArchives().length, index.getId());
 					continue;
